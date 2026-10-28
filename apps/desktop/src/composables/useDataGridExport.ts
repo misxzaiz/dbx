@@ -1938,15 +1938,13 @@ export function useDataGridExport(options: UseDataGridExportOptions) {
     if (sheetsToExport === undefined && fullExportResult && !hasCompleteLocalResult?.value) {
       const activeIndex = sheets.findIndex((sheet) => sheet.result === options.snapshotResult?.value);
       if (activeIndex >= 0) {
-        try {
-          const fullResult = await fullExportResult();
-          if (fullResult?.columns.length) {
-            sheets = sheets.map((sheet, index) => (index === activeIndex ? { ...sheet, result: fullResult } : sheet));
-            completedResultResults.add(fullResult);
-          }
-        } catch (error) {
-          // 补全失败时回退到内存快照（保持原行为），避免导出被整体中断。
-          if (error instanceof SnapshotCompletionError && error.status === "cancelled") throw error;
+        // 用户要求全部数据：补全查询失败（含取消）时中止导出而不是静默回退到
+        // 当前页快照，否则会产出残缺文件；错误向上传播，与单结果导出路径
+        // （resultToExport 中的 fullExportResult 调用）一致，由统一 toast 提示。
+        const fullResult = await fullExportResult();
+        if (fullResult?.columns.length) {
+          sheets = sheets.map((sheet, index) => (index === activeIndex ? { ...sheet, result: fullResult } : sheet));
+          completedResultResults.add(fullResult);
         }
       }
     }
@@ -2158,14 +2156,12 @@ export function useDataGridExport(options: UseDataGridExportOptions) {
         if (sheetsToExport === undefined && fullExportResult && !hasCompleteLocalResult?.value) {
           const activeIndex = sheets.findIndex((sheet) => sheet.result === options.snapshotResult?.value);
           if (activeIndex >= 0) {
-            try {
-              const fullResult = await fullExportResult();
-              if (fullResult?.columns.length) {
-                sheets = sheets.map((sheet, index) => (index === activeIndex ? { ...sheet, result: fullResult } : sheet));
-                completedResultResults.add(fullResult);
-              }
-            } catch (error) {
-              if (error instanceof SnapshotCompletionError && error.status === "cancelled") throw error;
+            // 与 exportMemoryResultSheetsXlsx 相同：补全失败（含取消）时中止导出，
+            // 不静默回退到当前页，错误由外层统一 toast 报错。
+            const fullResult = await fullExportResult();
+            if (fullResult?.columns.length) {
+              sheets = sheets.map((sheet, index) => (index === activeIndex ? { ...sheet, result: fullResult } : sheet));
+              completedResultResults.add(fullResult);
             }
           }
         }
